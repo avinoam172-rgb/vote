@@ -42,6 +42,17 @@ h1{font-family:"Frank Ruhl Libre",serif;font-weight:900;font-size:clamp(28px,7vw
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:14px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .chip{width:12px;height:12px;border-radius:3px;flex:none}
+.blocs{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.bloc-bar{position:relative;display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--empty);margin-bottom:12px}
+.bloc-bar i{display:block;height:100%}
+.bloc-bar .mid{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);right:calc(61 / 120 * 100%)}
+.bloc-list{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.bloc{display:grid;grid-template-columns:auto 1fr;gap:0 10px;align-items:center}
+.bloc b{font-family:"Frank Ruhl Libre",serif;font-weight:900;font-size:34px;line-height:1;grid-row:span 2;font-variant-numeric:tabular-nums}
+.bloc .bn{font-weight:700;display:flex;align-items:center;gap:6px}
+.bloc .bm{color:var(--muted);font-size:13px;line-height:1.35}
+.bloc-note{color:var(--muted);font-size:13px;margin-top:10px}
+@media (max-width:520px){.bloc-list{grid-template-columns:1fr}}
 
 .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:16px 0 28px}
 .facts div{background:var(--surface);padding:10px 12px}
@@ -83,6 +94,7 @@ h2{font-family:"Frank Ruhl Libre",serif;font-weight:700;font-size:22px;margin:0 
   <section class="plenum" aria-label="120 המושבים בכנסת">
     <div class="seats" id="seats"></div>
     <div class="legend" id="legend"></div>
+    <div class="blocs" id="blocs"></div>
   </section>
 
   <div class="facts" id="facts"></div>
@@ -110,6 +122,12 @@ const THRESHOLD = 0.0325;
 const SURPLUS = [["ל","רק"],["אמת","דרך"],["עם","ודם"],["מחל","ט"],["שס","ג"]];
 // שמות מלאים של כל הרשימות (לקובץ ה-CSV, שבו יש רק אותיות)
 const NAMES = {"מחל": "הליכוד בהנהגת בנימין נתניהו לראשות הממשלה", "דרך": "ישר! עם איזנקוט לראשות הממשלה מאחדים את ישראל", "רק": "ביחד בראשות נפתלי בנט", "ודם": "הרשימה המשותפת", "אמת": "הדמוקרטים בראשות יאיר גולן", "ג": "יהדות התורה והשבת אגודת ישראל - דגל התורה", "ל": "ישראל ביתנו בראשות אביגדור ליברמן", "ב": "עוצמה יהודית בראשות איתמר בן גביר", "שס": "התאחדות הספרדים שומרי תורה תנועתו של מרן הרב עובדיה יוסף זצ\"ל", "עם": "רע\"ם - הרשימה הערבית המאוחדת", "ט": "הציונות הדתית בראשות בצלאל סמוטריץ' וזהות בראשות משה פייגלין", "די": "המילואימניקים והכלכלית בראשות יועז הנדל וירון זליכה", "ך": "עמך ישראל בראשות עופר וינטר", "נר": "צבע שחור - מגן עולם התורה", "זך": "הציבור החרדי בראשות מוטי ליטנר", "ני": "נעם לישראל למען עתיד הילדים בראשות אבי מעוז", "בי": "צומת בית ישראל", "ד": "השותפות לכולם", "צדק": "שרשר לאהבה ואחדות העם", "בד": "מפלגת ביחד נצליח - רשימה משותפת ערבית יהודית בראשות אבי שקד", "ה": "גן עדן בראשות ישוע ישראל בן דוד", "י": "ישראל תחילה בראשות שרן השכל", "רץ": "הקהל - מפלגה כלל חרדית שנציגיה נבחרים על ידי הציבור בראשות הרב שלמה אלבוים", "נקי": "התיקון לשיטת הבחירות והממשל", "קך": "סדר-חדש לכינון חוקה, להפרדת רשויות ובחירות אישיות", "צף": "הפיראטים - צפים לטוב", "נף": "שמע בראשות נפתלי גולדמן", "פה": "אני ואתה מפלגת העם הישראלית", "בקר": "אורות השחר בראשות ניסים לוק", "קץ": "משפט צדק", "קה": "קול הנשים", "ק": "תקומה", "ז": "בטח - בטחון חברתי בראשות סמיון גרפמן", "נץ": "ביטחון אישי", "יק": "גה\"ת - גוש התנ\"כי", "זץ": "ברית עולם לגאולת ישראל", "צבי": "תנועת אחי תנועתו של הרב יורם אברג'ל זצ\"ל", "כן": "כחול לבן בראשות בני גנץ"};
+// גושים (לפי אותיות הרשימה)
+const BLOCS = [
+  {name:"גוש הימין", color:"#2F4E7E", letters:["מחל","ג","ב","שס","ט"]},
+  {name:"גוש השמאל", color:"#7C95B8", letters:["דרך","רק","אמת","ל"]},
+  {name:"גוש הערבים", color:"#B9A27A", letters:["ודם","עם"]}
+];
 // שמות קצרים לתצוגה (לפי אותיות הרשימה)
 const SHORT = {"מחל":"הליכוד","דרך":"ישר!","רק":"ביחד","ודם":"הרשימה המשותפת","אמת":"הדמוקרטים","ג":"יהדות התורה","ל":"ישראל ביתנו","ב":"עוצמה יהודית","שס":"ש\"ס","עם":"רע\"ם","ט":"הציונות הדתית","די":"המילואימניקים והכלכלית","ך":"עמך ישראל"};
 const COLORS = ["#2F5DA8","#1F9AA0","#C2852B","#7A4FA8","#C2483F","#3D8A4E","#B05C8E","#5A6E8C","#D0A13A","#4E7F9E","#8C6A3F","#6C9A2E","#A63D5E","#3E6B6B","#96705B"];
@@ -313,6 +331,25 @@ let prevSeats = null, showAllOut = false, lastResult = null;
 
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
+function renderBlocs(r){
+  const seatsOf = {}; for (const l of r.inLists) seatsOf[l.letters] = l.seats;
+  const used = new Set();
+  const rows = BLOCS.map(b => {
+    b.letters.forEach(x => used.add(x));
+    const members = r.inLists.filter(l => b.letters.includes(l.letters));
+    return { name:b.name, color:b.color, seats: members.reduce((a,l) => a + l.seats, 0), members };
+  });
+  const others = r.inLists.filter(l => !used.has(l.letters));
+  if (others.length) rows.push({ name:"אחרים", color:"#9AA3AF", seats: others.reduce((a,l) => a + l.seats, 0), members: others });
+  const bar = rows.map(x => `<i style="width:${x.seats / SEATS * 100}%;background:${x.color}" title="${esc(x.name)} ${x.seats}"></i>`).join("");
+  document.getElementById("blocs").innerHTML =
+    `<div class="bloc-bar" role="img" aria-label="${esc(rows.map(x => x.name + " " + x.seats).join(", "))}">${bar}<span class="mid"></span></div>
+     <div class="bloc-list">${rows.map(x => `<div class="bloc"><b>${x.seats}</b>
+       <div class="bn"><i class="chip" style="background:${x.color}"></i>${esc(x.name)}</div>
+       <div class="bm">${x.members.length ? x.members.map(l => esc(short(l)) + " " + l.seats).join(", ") : "אין רשימות מעל אחוז החסימה"}</div></div>`).join("")}</div>
+     <div class="bloc-note">הקו השחור מסמן 61 מנדטים, רוב בכנסת.</div>`;
+}
+
 function render(data, r){
   // 120 מושבים
   const seatsEl = document.getElementById("seats");
@@ -323,6 +360,7 @@ function render(data, r){
   for (const l of r.inLists) for (let s = 0; s < l.seats; s++){ const el = seatsEl.children[i++]; el.style.background = color(l.letters); el.title = short(l); }
   for (; i < SEATS; i++){ seatsEl.children[i].style.background = ""; seatsEl.children[i].title = ""; }
 
+  renderBlocs(r);
   document.getElementById("legend").innerHTML = r.inLists.map(l =>
     `<span><i class="chip" style="background:${color(l.letters)}"></i>${esc(short(l))} ${l.seats}</span>`).join("");
 
