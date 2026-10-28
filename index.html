@@ -99,9 +99,11 @@ h2{font-family:"Frank Ruhl Libre",serif;font-weight:700;font-size:22px;margin:0 
 
 <script>
 // ===== הגדרות =====
-// מאיפה קוראים את התוצאות. אם הראשון לא עובד, מנסים את הבא.
-const SOURCES = ["https://votes26.bechirot.gov.il/nationalresults?lang=he","https://media26.bechirot.gov.il/files/expc.csv","https://trivia-2u1l.onrender.com/categories"];
-const REFRESH_SECONDS = 20;
+// האפליקציה קוראת את התוצאות מאתר ועדת הבחירות (אם הראשון לא עובד, מנסים את הבא)
+const GOV_PAGES = ["https://votes26.bechirot.gov.il/","https://votes26.bechirot.gov.il/nationalresults?lang=he"];
+// כתובת האתר ב-Render. האפליקציה שולחת לשם את התוצאות, והאתר מציג אותן
+const SERVER = "https://vote-9s4i.onrender.com";
+const REFRESH_SECONDS = 30;
 const SEATS = 120;
 const THRESHOLD = 0.0325;
 // הסכמי עודפים לכנסת ה-26 (לפי אותיות הרשימה)
@@ -257,35 +259,48 @@ function computeSeats(data){
 }
 // ===== LOGIC-END =====
 
-// ===== קבלת הדף =====
+// ===== קבלת הנתונים =====
+const IN_APP = !!window.AndroidBridge;
 let reqSeq = 0; const pending = {};
-// האפליקציה מחזירה את הדף כ-base64 כדי לשמור על הקידוד המקורי
 window.__nativeDone = function(id, ok, text){
   const p = pending[id]; if (!p) return; delete pending[id];
-  if (!ok) return p.reject(new Error(text || "שגיאת רשת"));
-  const bin = atob(text), bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  p.resolve(bytes);
+  ok ? p.resolve(text) : p.reject(new Error(text || "שגיאת רשת"));
 };
-function getBytes(url){
-  if (window.AndroidBridge){
-    return new Promise((resolve,reject) => {
-      const id = ++reqSeq; pending[id] = {resolve,reject};
-      window.AndroidBridge.fetch(id, url);
-    });
-  }
-  return fetch("/raw?u=" + encodeURIComponent(url), {cache:"no-store"}).then(r => {
-    if (!r.ok) return r.text().then(t => { throw new Error(t || ("שגיאה " + r.status)); });
-    return r.arrayBuffer().then(b => new Uint8Array(b));
+// באפליקציה: הדף של הוועדה נפתח בדפדפן נסתר בתוך האפליקציה, ומשם לוקחים את התוכן
+function govPage(url){
+  return new Promise((resolve,reject) => {
+    const id = ++reqSeq; pending[id] = {resolve,reject};
+    window.AndroidBridge.fetch(id, url);
   });
 }
+function pushToSite(data){
+  if (!SERVER || !window.AndroidBridge.key) return;
+  fetch(SERVER.replace(/\/$/,"") + "/push", {
+    method: "POST",
+    headers: {"Content-Type":"text/plain"},
+    body: JSON.stringify({ key: window.AndroidBridge.key(), data })
+  }).catch(() => {});
+}
+let siteInfo = null;
 async function load(){
-  const errs = [];
-  for (let i = 0; i < SOURCES.length; i++){
-    try { return parseAny(SOURCES[i], await getBytes(SOURCES[i])); }
-    catch(e){ errs.push("מקור " + (i + 1) + " (" + SOURCES[i].replace(/^https?:\/\//, "") + "): " + (e.message || e)); }
+  if (IN_APP){
+    const errs = [];
+    for (let i = 0; i < GOV_PAGES.length; i++){
+      try {
+        const data = parseResults(await govPage(GOV_PAGES[i]));
+        pushToSite(data);
+        return data;
+      } catch(e){ errs.push("ניסיון " + (i + 1) + ": " + (e.message || e)); }
+    }
+    throw new Error(errs.join(" | "));
   }
-  throw new Error(errs.join(" | "));
+  // באתר: מקבלים מהשרת את התוצאות האחרונות שהאפליקציה שלחה
+  const r = await fetch("/data", {cache:"no-store"});
+  if (r.status === 204) throw new Error("עדיין לא התקבלו נתונים. פתח את האפליקציה בטלפון, והאתר יתעדכן ממנה");
+  if (!r.ok) throw new Error("השרת החזיר שגיאה " + r.status);
+  const j = await r.json();
+  siteInfo = { receivedAt: j.receivedAt };
+  return j.data;
 }
 
 // ===== תצוגה =====
@@ -365,11 +380,16 @@ async function tickInner(){
     render(data, r);
     err.style.display = "none";
     dot.className = "dot"; void dot.offsetWidth; dot.className = "dot pulse";
-    status.textContent = "עודכן ב-" + new Date().toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    const when = (!IN_APP && siteInfo) ? new Date(siteInfo.receivedAt) : new Date();
+    status.textContent = "עודכן ב-" + when.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    if (!IN_APP && siteInfo && Date.now() - siteInfo.receivedAt > 3 * 60 * 1000){
+      err.textContent = "אלה הנתונים האחרונים שהתקבלו. כדי שהאתר יתעדכן, האפליקציה צריכה להיות פתוחה בטלפון.";
+      err.style.display = "block";
+    }
   } catch(e){
     dot.className = "dot err";
     status.textContent = "אין חיבור לנתונים";
-    err.textContent = "לא הצלחתי לקרוא את התוצאות. " + e.message + ". מנסה שוב בעוד " + REFRESH_SECONDS + " שניות.";
+    err.textContent = (IN_APP ? "לא הצלחתי לקרוא את התוצאות. " : "") + e.message + ". מנסה שוב בעוד " + REFRESH_SECONDS + " שניות.";
     err.style.display = "block";
   }
 }
