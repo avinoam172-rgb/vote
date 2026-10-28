@@ -21,13 +21,13 @@ async function fetchSource(url) {
     const res = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml",
+        "Accept": "text/html,application/xhtml+xml,text/csv,*/*",
         "Accept-Language": "he-IL,he;q=0.9"
       },
       signal: AbortSignal.timeout(60000) // שרת חינמי ב-Render יכול לקחת עד דקה להתעורר
     });
     if (!res.ok) throw new Error("האתר החזיר שגיאה " + res.status);
-    return await res.text();
+    return Buffer.from(await res.arrayBuffer());
   })().catch(e => {
     const why = e.name === "TimeoutError" ? "לא ענה תוך דקה" : (e.cause && e.cause.code) ? "אין חיבור (" + e.cause.code + ")" : (e.message || String(e));
     throw new Error(why);
@@ -57,7 +57,7 @@ http.createServer(async (req, res) => {
     }
     try {
       const body = await fetchSource(target);
-      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+      res.writeHead(200, { "Content-Type": "application/octet-stream", "Cache-Control": "no-store" });
       return res.end(body);
     } catch (e) {
       res.writeHead(502, { "Content-Type": "text/plain; charset=utf-8" });

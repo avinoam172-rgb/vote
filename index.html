@@ -100,12 +100,14 @@ h2{font-family:"Frank Ruhl Libre",serif;font-weight:700;font-size:22px;margin:0 
 <script>
 // ===== הגדרות =====
 // מאיפה קוראים את התוצאות. אם הראשון לא עובד, מנסים את הבא.
-const SOURCES = ["https://trivia-2u1l.onrender.com/categories","https://votes26.bechirot.gov.il/nationalresults"];
+const SOURCES = ["https://votes26.bechirot.gov.il/nationalresults?lang=he","https://media26.bechirot.gov.il/files/expc.csv","https://trivia-2u1l.onrender.com/categories"];
 const REFRESH_SECONDS = 20;
 const SEATS = 120;
 const THRESHOLD = 0.0325;
 // הסכמי עודפים לכנסת ה-26 (לפי אותיות הרשימה)
 const SURPLUS = [["ל","רק"],["אמת","דרך"],["עם","ודם"],["מחל","ט"],["שס","ג"]];
+// שמות מלאים של כל הרשימות (לקובץ ה-CSV, שבו יש רק אותיות)
+const NAMES = {"מחל": "הליכוד בהנהגת בנימין נתניהו לראשות הממשלה", "דרך": "ישר! עם איזנקוט לראשות הממשלה מאחדים את ישראל", "רק": "ביחד בראשות נפתלי בנט", "ודם": "הרשימה המשותפת", "אמת": "הדמוקרטים בראשות יאיר גולן", "ג": "יהדות התורה והשבת אגודת ישראל - דגל התורה", "ל": "ישראל ביתנו בראשות אביגדור ליברמן", "ב": "עוצמה יהודית בראשות איתמר בן גביר", "שס": "התאחדות הספרדים שומרי תורה תנועתו של מרן הרב עובדיה יוסף זצ\"ל", "עם": "רע\"ם - הרשימה הערבית המאוחדת", "ט": "הציונות הדתית בראשות בצלאל סמוטריץ' וזהות בראשות משה פייגלין", "די": "המילואימניקים והכלכלית בראשות יועז הנדל וירון זליכה", "ך": "עמך ישראל בראשות עופר וינטר", "נר": "צבע שחור - מגן עולם התורה", "זך": "הציבור החרדי בראשות מוטי ליטנר", "ני": "נעם לישראל למען עתיד הילדים בראשות אבי מעוז", "בי": "צומת בית ישראל", "ד": "השותפות לכולם", "צדק": "שרשר לאהבה ואחדות העם", "בד": "מפלגת ביחד נצליח - רשימה משותפת ערבית יהודית בראשות אבי שקד", "ה": "גן עדן בראשות ישוע ישראל בן דוד", "י": "ישראל תחילה בראשות שרן השכל", "רץ": "הקהל - מפלגה כלל חרדית שנציגיה נבחרים על ידי הציבור בראשות הרב שלמה אלבוים", "נקי": "התיקון לשיטת הבחירות והממשל", "קך": "סדר-חדש לכינון חוקה, להפרדת רשויות ובחירות אישיות", "צף": "הפיראטים - צפים לטוב", "נף": "שמע בראשות נפתלי גולדמן", "פה": "אני ואתה מפלגת העם הישראלית", "בקר": "אורות השחר בראשות ניסים לוק", "קץ": "משפט צדק", "קה": "קול הנשים", "ק": "תקומה", "ז": "בטח - בטחון חברתי בראשות סמיון גרפמן", "נץ": "ביטחון אישי", "יק": "גה\"ת - גוש התנ\"כי", "זץ": "ברית עולם לגאולת ישראל", "צבי": "תנועת אחי תנועתו של הרב יורם אברג'ל זצ\"ל", "כן": "כחול לבן בראשות בני גנץ"};
 // שמות קצרים לתצוגה (לפי אותיות הרשימה)
 const SHORT = {"מחל":"הליכוד","דרך":"ישר!","רק":"ביחד","ודם":"הרשימה המשותפת","אמת":"הדמוקרטים","ג":"יהדות התורה","ל":"ישראל ביתנו","ב":"עוצמה יהודית","שס":"ש\"ס","עם":"רע\"ם","ט":"הציונות הדתית","די":"המילואימניקים והכלכלית","ך":"עמך ישראל"};
 const COLORS = ["#2F5DA8","#1F9AA0","#C2852B","#7A4FA8","#C2483F","#3D8A4E","#B05C8E","#5A6E8C","#D0A13A","#4E7F9E","#8C6A3F","#6C9A2E","#A63D5E","#3E6B6B","#96705B"];
@@ -132,7 +134,7 @@ function parseResults(html){
       lists.push({ name: decodeEntities(m[1]), letters: decodeEntities(m[2]), votes: toInt(m[3]) });
     }
   }
-  if (!valid || lists.length === 0) throw new Error("לא נמצאו תוצאות בדף");
+  if (!valid || lists.length === 0) throw new Error("לא נמצאו תוצאות בדף" + describePage(html));
   const t = html.match(/תוצאות נכון ל-\s*([\d\/]+\s+[\d:]+)/);
   return {
     valid,
@@ -143,6 +145,62 @@ function parseResults(html){
     asOf: t ? t[1] : null,
     lists
   };
+}
+// כשהדף לא נראה כמו דף התוצאות - לכתוב מה כן הגיע, כדי שיהיה קל להבין מה קרה
+function describePage(text){
+  const t = text.match(/<title[^>]*>([^<]*)<\/title>/i);
+  if (t && t[1].trim()) return " (הגיע דף בשם: " + decodeEntities(t[1]).slice(0,80) + ")";
+  const plain = text.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
+  return plain ? " (תחילת התוכן: " + plain.slice(0,80) + ")" : " (הדף ריק)";
+}
+// קובץ התוצאות לפי יישובים: מחברים את כל היישובים לתוצאה ארצית
+function splitCsvLine(line){
+  const out = []; let cur = "", q = false;
+  for (let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if (q){ if (ch === '"'){ if (line[i+1] === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ","){ out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out.map(x => x.replace(/^\uFEFF/,"").trim());
+}
+function parseCsv(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const hi = lines.findIndex(l => splitCsvLine(l).includes("כשרים"));
+  if (hi < 0) throw new Error("לא נמצאו תוצאות בקובץ" + describePage(text));
+  const head = splitCsvLine(lines[hi]);
+  const col = name => head.indexOf(name);
+  const iValid = col("כשרים"), iTotal = col("מצביעים"), iInvalid = col("פסולים"), iEligible = col("בזב");
+  const partyCols = [];
+  for (let i = iValid + 1; i < head.length; i++) if (head[i]) partyCols.push(i);
+  const sums = new Array(head.length).fill(0);
+  for (let r = hi + 1; r < lines.length; r++){
+    const cells = splitCsvLine(lines[r]);
+    if (cells.some(c => c.indexOf("סה\"כ") >= 0)) continue;
+    for (let i = 0; i < cells.length && i < head.length; i++) sums[i] += toInt(cells[i]);
+  }
+  const lists = partyCols.map(i => ({ letters: head[i], name: NAMES[head[i]] || head[i], votes: sums[i] }));
+  if (!sums[iValid] || !lists.length) throw new Error("הקובץ ריק");
+  return {
+    valid: sums[iValid],
+    total: iTotal >= 0 ? sums[iTotal] : null,
+    invalid: iInvalid >= 0 ? sums[iInvalid] : null,
+    ballots: null,
+    eligible: iEligible >= 0 ? sums[iEligible] : null,
+    asOf: null,
+    lists
+  };
+}
+function decodeBytes(bytes){
+  let t = new TextDecoder("utf-8").decode(bytes);
+  if (t.indexOf("\uFFFD") >= 0){ try { t = new TextDecoder("windows-1255").decode(bytes); } catch(e){} }
+  return t;
+}
+function parseAny(url, bytes){
+  const text = decodeBytes(bytes);
+  return /\.csv(\?|$)/i.test(url) ? parseCsv(text) : parseResults(text);
 }
 // מחלק מושבים בשיטת המודד הגבוה ביותר (כמו בדר-עופר)
 function highestAverage(units,seatsToGive){
@@ -201,11 +259,15 @@ function computeSeats(data){
 
 // ===== קבלת הדף =====
 let reqSeq = 0; const pending = {};
+// האפליקציה מחזירה את הדף כ-base64 כדי לשמור על הקידוד המקורי
 window.__nativeDone = function(id, ok, text){
   const p = pending[id]; if (!p) return; delete pending[id];
-  ok ? p.resolve(text) : p.reject(new Error(text || "שגיאת רשת"));
+  if (!ok) return p.reject(new Error(text || "שגיאת רשת"));
+  const bin = atob(text), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  p.resolve(bytes);
 };
-function getPage(url){
+function getBytes(url){
   if (window.AndroidBridge){
     return new Promise((resolve,reject) => {
       const id = ++reqSeq; pending[id] = {resolve,reject};
@@ -214,13 +276,13 @@ function getPage(url){
   }
   return fetch("/raw?u=" + encodeURIComponent(url), {cache:"no-store"}).then(r => {
     if (!r.ok) return r.text().then(t => { throw new Error(t || ("שגיאה " + r.status)); });
-    return r.text();
+    return r.arrayBuffer().then(b => new Uint8Array(b));
   });
 }
 async function load(){
   const errs = [];
   for (let i = 0; i < SOURCES.length; i++){
-    try { return parseResults(await getPage(SOURCES[i])); }
+    try { return parseAny(SOURCES[i], await getBytes(SOURCES[i])); }
     catch(e){ errs.push("מקור " + (i + 1) + " (" + SOURCES[i].replace(/^https?:\/\//, "") + "): " + (e.message || e)); }
   }
   throw new Error(errs.join(" | "));
