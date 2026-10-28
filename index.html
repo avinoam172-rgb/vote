@@ -130,10 +130,11 @@ function parseResults(html){
   const tbody = html.split("<tbody>")[1];
   if (tbody){
     const body = tbody.split("</tbody>")[0];
-    const rowRe = /<td[^>]*title='([^']*)'[^>]*>[\s\S]*?<td>\s*([^<]+?)\s*<\/td>\s*<td>\s*[\d.]+%\s*<\/td>[\s\S]*?<span class="flex-fill text-start">\s*([\d,]+)\s*<\/span>/g;
+    // עובד גם על קוד המקור של הדף וגם על הדף כפי שהדפדפן מציג אותו (גרשיים בודדים או כפולים)
+    const rowRe = /<td[^>]*?\btitle=(?:'([^']*)'|"([^"]*)")[^>]*>[\s\S]*?<td[^>]*>\s*([^<]+?)\s*<\/td>\s*<td[^>]*>\s*[\d.]+%\s*<\/td>[\s\S]*?<span[^>]*class="flex-fill text-start"[^>]*>\s*([\d,]+)\s*<\/span>/g;
     let m;
     while ((m = rowRe.exec(body))){
-      lists.push({ name: decodeEntities(m[1]), letters: decodeEntities(m[2]), votes: toInt(m[3]) });
+      lists.push({ name: decodeEntities(m[1] != null ? m[1] : m[2]), letters: decodeEntities(m[3]), votes: toInt(m[4]) });
     }
   }
   if (!valid || lists.length === 0) throw new Error("לא נמצאו תוצאות בדף" + describePage(html));
