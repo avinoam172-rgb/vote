@@ -218,12 +218,12 @@ function getPage(url){
   });
 }
 async function load(){
-  let lastErr;
-  for (const src of SOURCES){
-    try { return parseResults(await getPage(src)); }
-    catch(e){ lastErr = e; }
+  const errs = [];
+  for (let i = 0; i < SOURCES.length; i++){
+    try { return parseResults(await getPage(SOURCES[i])); }
+    catch(e){ errs.push("מקור " + (i + 1) + " (" + SOURCES[i].replace(/^https?:\/\//, "") + "): " + (e.message || e)); }
   }
-  throw lastErr;
+  throw new Error(errs.join(" | "));
 }
 
 // ===== תצוגה =====
@@ -288,7 +288,13 @@ function render(data, r){
 
 document.getElementById("more").addEventListener("click", () => { showAllOut = true; if (lastResult) render(...lastResult); });
 
+let busy = false;
 async function tick(){
+  if (busy) return;
+  busy = true;
+  try { await tickInner(); } finally { busy = false; }
+}
+async function tickInner(){
   const dot = document.getElementById("dot"), status = document.getElementById("status"), err = document.getElementById("error");
   try {
     const data = await load();
@@ -301,7 +307,7 @@ async function tick(){
   } catch(e){
     dot.className = "dot err";
     status.textContent = "אין חיבור לנתונים";
-    err.textContent = "לא הצלחתי לקרוא את התוצאות: " + e.message + ". מנסה שוב בעוד " + REFRESH_SECONDS + " שניות.";
+    err.textContent = "לא הצלחתי לקרוא את התוצאות. " + e.message + ". מנסה שוב בעוד " + REFRESH_SECONDS + " שניות.";
     err.style.display = "block";
   }
 }

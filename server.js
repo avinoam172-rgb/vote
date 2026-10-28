@@ -24,11 +24,14 @@ async function fetchSource(url) {
         "Accept": "text/html,application/xhtml+xml",
         "Accept-Language": "he-IL,he;q=0.9"
       },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(60000) // שרת חינמי ב-Render יכול לקחת עד דקה להתעורר
     });
     if (!res.ok) throw new Error("האתר החזיר שגיאה " + res.status);
     return await res.text();
-  })();
+  })().catch(e => {
+    const why = e.name === "TimeoutError" ? "לא ענה תוך דקה" : (e.cause && e.cause.code) ? "אין חיבור (" + e.cause.code + ")" : (e.message || String(e));
+    throw new Error(why);
+  });
   cache[url] = { ...(c || {}), promise };
   try {
     const body = await promise;
