@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>מנדטים בזמן אמת</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --ink:#18263C; --muted:#5B6779; --line:#D5DBE4;
+  --empty:#D9DEE6; --live:#1E8E5A; --warn:#B4492E;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121A27; --surface:#1A2435; --ink:#E9EDF3; --muted:#9AA6B8; --line:#2C384C;
+    --empty:#2A3547; --live:#4CC38A; --warn:#E5876B;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121A27; --surface:#1A2435; --ink:#E9EDF3; --muted:#9AA6B8; --line:#2C384C;
+  --empty:#2A3547; --live:#4CC38A; --warn:#E5876B;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Assistant",system-ui,sans-serif;font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+.wrap{max-width:860px;margin:0 auto;padding:20px 16px 48px}
+h1{font-family:"Frank Ruhl Libre",serif;font-weight:900;font-size:clamp(28px,7vw,44px);line-height:1.1;margin:0}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--live);flex:none}
+.dot.err{background:var(--warn)}
+.dot.pulse{animation:pulse 1.2s ease-out}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--live) 60%,transparent)}100%{box-shadow:0 0 0 12px transparent}}
+.sub{color:var(--muted);margin:0 0 18px;font-size:15px}
+
+/* the Knesset: 120 seats */
+.plenum{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.seats{display:grid;grid-template-columns:repeat(20,1fr);gap:4px}
+.seat{aspect-ratio:1;border-radius:3px;background:var(--empty);transition:background-color .6s}
+@media (max-width:520px){.seats{grid-template-columns:repeat(12,1fr);gap:3px}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:14px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.chip{width:12px;height:12px;border-radius:3px;flex:none}
+
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:16px 0 28px}
+.facts div{background:var(--surface);padding:10px 12px}
+.facts b{display:block;font-family:"Frank Ruhl Libre",serif;font-size:21px;font-weight:700;font-variant-numeric:tabular-nums}
+.facts small{color:var(--muted);font-size:13px}
+@media (max-width:520px){.facts{grid-template-columns:repeat(2,1fr)}}
+
+h2{font-family:"Frank Ruhl Libre",serif;font-weight:700;font-size:22px;margin:0 0 10px}
+.list{list-style:none;margin:0 0 28px;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.row{display:grid;grid-template-columns:6px 1fr auto;gap:0 14px;align-items:center;padding:12px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.bar{align-self:stretch;border-radius:3px}
+.name{font-weight:700;font-size:17px}
+.meta{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.num{font-family:"Frank Ruhl Libre",serif;font-weight:900;font-size:34px;line-height:1;text-align:center;min-width:2ch;font-variant-numeric:tabular-nums}
+.delta{display:block;font-family:"Assistant",sans-serif;font-size:13px;font-weight:700;margin-top:4px}
+.up{color:var(--live)} .down{color:var(--warn)}
+.flash{animation:flash 2.4s ease-out}
+@keyframes flash{0%{background:color-mix(in srgb,var(--live) 18%,var(--surface))}100%{background:var(--surface)}}
+.out .row{grid-template-columns:1fr auto}
+.out .num{font-size:16px;font-family:"Assistant",sans-serif;font-weight:700;color:var(--warn);text-align:start}
+.note{color:var(--muted);font-size:14px;max-width:70ch}
+.error{background:var(--surface);border:1px solid var(--warn);color:var(--ink);border-radius:14px;padding:14px;margin-bottom:16px;display:none}
+.more{background:none;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 16px;font:inherit;cursor:pointer}
+.more:focus-visible,.row:focus-visible{outline:3px solid var(--live);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>הכנסת ה-26, לפי הספירה עכשיו</h1>
+    <div class="status"><span class="dot" id="dot"></span><span id="status">טוען נתונים…</span></div>
+  </div>
+  <p class="sub" id="sub">&nbsp;</p>
+
+  <div class="error" id="error"></div>
+
+  <section class="plenum" aria-label="120 המושבים בכנסת">
+    <div class="seats" id="seats"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="facts" id="facts"></div>
+
+  <h2>מנדטים לפי רשימה</h2>
+  <ul class="list" id="list"></ul>
+
+  <h2>לא עוברות את אחוז החסימה</h2>
+  <ul class="list out" id="out"></ul>
+  <button class="more" id="more" hidden>הצג את כל הרשימות</button>
+
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+// ===== הגדרות =====
+// מאיפה קוראים את התוצאות. אם הראשון לא עובד, מנסים את הבא.
+const SOURCES = ["https://trivia-2u1l.onrender.com/categories","https://votes26.bechirot.gov.il/nationalresults"];
+const REFRESH_SECONDS = 20;
+const SEATS = 120;
+const THRESHOLD = 0.0325;
+// הסכמי עודפים לכנסת ה-26 (לפי אותיות הרשימה)
+const SURPLUS = [["ל","רק"],["אמת","דרך"],["עם","ודם"],["מחל","ט"],["שס","ג"]];
+// שמות קצרים לתצוגה (לפי אותיות הרשימה)
+const SHORT = {"מחל":"הליכוד","דרך":"ישר!","רק":"ביחד","ודם":"הרשימה המשותפת","אמת":"הדמוקרטים","ג":"יהדות התורה","ל":"ישראל ביתנו","ב":"עוצמה יהודית","שס":"ש\"ס","עם":"רע\"ם","ט":"הציונות הדתית","די":"המילואימניקים והכלכלית","ך":"עמך ישראל"};
+const COLORS = ["#2F5DA8","#1F9AA0","#C2852B","#7A4FA8","#C2483F","#3D8A4E","#B05C8E","#5A6E8C","#D0A13A","#4E7F9E","#8C6A3F","#6C9A2E","#A63D5E","#3E6B6B","#96705B"];
+
+// ===== LOGIC-START =====
+function decodeEntities(s){
+  return s.replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&nbsp;/g," ").replace(/\s+/g," ").trim();
+}
+function toInt(s){ return parseInt(String(s).replace(/[^\d]/g,""),10) || 0; }
+function boxNumber(html,label){
+  const re = new RegExp(label + "\\s*</div>\\s*<div[^>]*>\\s*([\\d,]+)");
+  const m = html.match(re);
+  return m ? toInt(m[1]) : null;
+}
+function parseResults(html){
+  const valid = boxNumber(html,"קולות כשרים עד עתה");
+  const lists = [];
+  const tbody = html.split("<tbody>")[1];
+  if (tbody){
+    const body = tbody.split("</tbody>")[0];
+    const rowRe = /<td[^>]*title='([^']*)'[^>]*>[\s\S]*?<td>\s*([^<]+?)\s*<\/td>\s*<td>\s*[\d.]+%\s*<\/td>[\s\S]*?<span class="flex-fill text-start">\s*([\d,]+)\s*<\/span>/g;
+    let m;
+    while ((m = rowRe.exec(body))){
+      lists.push({ name: decodeEntities(m[1]), letters: decodeEntities(m[2]), votes: toInt(m[3]) });
+    }
+  }
+  if (!valid || lists.length === 0) throw new Error("לא נמצאו תוצאות בדף");
+  const t = html.match(/תוצאות נכון ל-\s*([\d\/]+\s+[\d:]+)/);
+  return {
+    valid,
+    total: boxNumber(html,"קולות עד עתה"),
+    invalid: boxNumber(html,"קולות פסולים עד עתה"),
+    ballots: boxNumber(html,"קלפיות עד עתה"),
+    eligible: boxNumber(html,"מספר בעלי זכות בחירה"),
+    asOf: t ? t[1] : null,
+    lists
+  };
+}
+// מחלק מושבים בשיטת המודד הגבוה ביותר (כמו בדר-עופר)
+function highestAverage(units,seatsToGive){
+  for (let s = 0; s < seatsToGive; s++){
+    let best = null, bestQ = -1;
+    for (const u of units){
+      const q = u.votes / (u.seats + 1);
+      if (q > bestQ){ bestQ = q; best = u; }
+    }
+    best.seats++;
+  }
+}
+function computeSeats(data){
+  // אחוז החסימה: 3.25% מהקולות הכשרים (חישוב במספרים שלמים כדי לא לטעות בעיגול)
+  const passes = l => l.votes * 10000 >= data.valid * Math.round(THRESHOLD * 10000);
+  const thresholdVotes = Math.ceil(data.valid * THRESHOLD);
+  const inLists = data.lists.filter(passes).map(l => ({...l, seats:0, partner:null}));
+  const outLists = data.lists.filter(l => !passes(l)).map(l => ({...l, missing: thresholdVotes - l.votes}));
+  const qualifying = inLists.reduce((a,l) => a + l.votes, 0);
+  const quota = qualifying / SEATS;
+  // שלב 1: מנדטים שלמים לפי המודד
+  for (const l of inLists) l.seats = Math.floor(l.votes / quota);
+  // שלב 2: עודפים. רשימות עם הסכם עודפים (ששתיהן עברו) נחשבות כרשימה אחת
+  const byLetters = Object.fromEntries(inLists.map(l => [l.letters, l]));
+  const units = [], used = new Set();
+  for (const [a,b] of SURPLUS){
+    if (byLetters[a] && byLetters[b]){
+      const A = byLetters[a], B = byLetters[b];
+      A.partner = B.letters; B.partner = A.letters;
+      units.push({members:[A,B], votes:A.votes + B.votes, seats:A.seats + B.seats});
+      used.add(a); used.add(b);
+    }
+  }
+  for (const l of inLists) if (!used.has(l.letters)) units.push({members:[l], votes:l.votes, seats:l.seats});
+  const given = units.reduce((a,u) => a + u.seats, 0);
+  highestAverage(units, SEATS - given);
+  // שלב 3: חלוקה בתוך כל זוג עודפים
+  for (const u of units){
+    if (u.members.length === 1){
+      u.members[0].seats = u.seats;
+    } else {
+      const [A,B] = u.members;
+      const pairQuota = u.votes / u.seats;
+      A.seats = Math.floor(A.votes / pairQuota);
+      B.seats = Math.floor(B.votes / pairQuota);
+      const sub = [{l:A, votes:A.votes, seats:A.seats},{l:B, votes:B.votes, seats:B.seats}];
+      highestAverage(sub, u.seats - A.seats - B.seats);
+      A.seats = sub[0].seats; B.seats = sub[1].seats;
+    }
+  }
+  inLists.sort((x,y) => y.seats - x.seats || y.votes - x.votes);
+  outLists.sort((x,y) => y.votes - x.votes);
+  return { thresholdVotes, quota, qualifying, inLists, outLists };
+}
+// ===== LOGIC-END =====
+
+// ===== קבלת הדף =====
+let reqSeq = 0; const pending = {};
+window.__nativeDone = function(id, ok, text){
+  const p = pending[id]; if (!p) return; delete pending[id];
+  ok ? p.resolve(text) : p.reject(new Error(text || "שגיאת רשת"));
+};
+function getPage(url){
+  if (window.AndroidBridge){
+    return new Promise((resolve,reject) => {
+      const id = ++reqSeq; pending[id] = {resolve,reject};
+      window.AndroidBridge.fetch(id, url);
+    });
+  }
+  return fetch("/raw?u=" + encodeURIComponent(url), {cache:"no-store"}).then(r => {
+    if (!r.ok) return r.text().then(t => { throw new Error(t || ("שגיאה " + r.status)); });
+    return r.text();
+  });
+}
+async function load(){
+  let lastErr;
+  for (const src of SOURCES){
+    try { return parseResults(await getPage(src)); }
+    catch(e){ lastErr = e; }
+  }
+  throw lastErr;
+}
+
+// ===== תצוגה =====
+const fmt = n => n.toLocaleString("he-IL");
+const colorOf = {}; let colorIdx = 0;
+function color(letters){ if (!colorOf[letters]) colorOf[letters] = COLORS[colorIdx++ % COLORS.length]; return colorOf[letters]; }
+const short = l => SHORT[l.letters] || l.name;
+let prevSeats = null, showAllOut = false, lastResult = null;
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function render(data, r){
+  // 120 מושבים
+  const seatsEl = document.getElementById("seats");
+  if (seatsEl.children.length !== SEATS){
+    seatsEl.innerHTML = ""; for (let i = 0; i < SEATS; i++){ const d = document.createElement("div"); d.className = "seat"; seatsEl.appendChild(d); }
+  }
+  let i = 0;
+  for (const l of r.inLists) for (let s = 0; s < l.seats; s++){ const el = seatsEl.children[i++]; el.style.background = color(l.letters); el.title = short(l); }
+  for (; i < SEATS; i++){ seatsEl.children[i].style.background = ""; seatsEl.children[i].title = ""; }
+
+  document.getElementById("legend").innerHTML = r.inLists.map(l =>
+    `<span><i class="chip" style="background:${color(l.letters)}"></i>${esc(short(l))} ${l.seats}</span>`).join("");
+
+  const counted = data.eligible && data.total ? ` (${(data.total / data.eligible * 100).toFixed(1)}% מבעלי זכות הבחירה)` : "";
+  document.getElementById("sub").textContent = (data.asOf ? `נתוני ועדת הבחירות נכון ל-${data.asOf}. ` : "") + `נספרו ${fmt(data.total || data.valid)} קולות${counted}.`;
+
+  document.getElementById("facts").innerHTML = `
+    <div><b>${fmt(data.valid)}</b><small>קולות כשרים</small></div>
+    <div><b>${fmt(r.thresholdVotes)}</b><small>קולות לאחוז החסימה (3.25%)</small></div>
+    <div><b>${fmt(Math.round(r.quota))}</b><small>קולות למנדט</small></div>
+    <div><b>${data.ballots ? fmt(data.ballots) : "–"}</b><small>קלפיות נספרו</small></div>`;
+
+  const byL = Object.fromEntries(r.inLists.map(l => [l.letters,l]));
+  document.getElementById("list").innerHTML = r.inLists.map(l => {
+    const prev = prevSeats ? (prevSeats[l.letters] ?? 0) : l.seats;
+    const d = l.seats - prev;
+    const delta = d ? `<span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "+" + d : d}</span>` : "";
+    const partner = l.partner && byL[l.partner] ? ` | עודפים עם ${esc(short(byL[l.partner]))}` : "";
+    return `<li class="row${d ? " flash" : ""}" title="${esc(l.name)}">
+      <span class="bar" style="background:${color(l.letters)}"></span>
+      <div><div class="name">${esc(short(l))}</div>
+      <div class="meta">${fmt(l.votes)} קולות, ${(l.votes / data.valid * 100).toFixed(2)}%${partner}</div></div>
+      <div class="num">${l.seats}${delta}</div></li>`;
+  }).join("");
+
+  const outs = showAllOut ? r.outLists : r.outLists.slice(0, 4);
+  document.getElementById("out").innerHTML = outs.map(l => `<li class="row" title="${esc(l.name)}">
+      <div><div class="name">${esc(short(l))}</div>
+      <div class="meta">${fmt(l.votes)} קולות, ${(l.votes / data.valid * 100).toFixed(2)}%</div></div>
+      <div class="num">חסרים ${fmt(l.missing)}</div></li>`).join("");
+  const more = document.getElementById("more");
+  more.hidden = showAllOut || r.outLists.length <= 4;
+
+  document.getElementById("note").textContent =
+    "החישוב: רשימה צריכה 3.25% מהקולות הכשרים. הקולות של הרשימות שעברו מחולקים ב-120 וכל רשימה מקבלת מנדטים שלמים. " +
+    "המנדטים שנשארו מחולקים בשיטת בדר-עופר, כשרשימות עם הסכם עודפים נחשבות יחד. זו תחזית לפי הספירה עד עכשיו, והתוצאות הרשמיות יכולות להשתנות.";
+
+  prevSeats = Object.fromEntries(data.lists.map(l => [l.letters, 0]));
+  for (const l of r.inLists) prevSeats[l.letters] = l.seats;
+}
+
+document.getElementById("more").addEventListener("click", () => { showAllOut = true; if (lastResult) render(...lastResult); });
+
+async function tick(){
+  const dot = document.getElementById("dot"), status = document.getElementById("status"), err = document.getElementById("error");
+  try {
+    const data = await load();
+    const r = computeSeats(data);
+    lastResult = [data, r];
+    render(data, r);
+    err.style.display = "none";
+    dot.className = "dot"; void dot.offsetWidth; dot.className = "dot pulse";
+    status.textContent = "עודכן ב-" + new Date().toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  } catch(e){
+    dot.className = "dot err";
+    status.textContent = "אין חיבור לנתונים";
+    err.textContent = "לא הצלחתי לקרוא את התוצאות: " + e.message + ". מנסה שוב בעוד " + REFRESH_SECONDS + " שניות.";
+    err.style.display = "block";
+  }
+}
+tick();
+setInterval(tick, REFRESH_SECONDS * 1000);
+</script>
+</body>
+</html>

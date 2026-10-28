@@ -1,0 +1,8 @@
+{
+  "name": "mandatim",
+  "version": "1.0.0",
+  "description": "מנדטים בזמן אמת",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
